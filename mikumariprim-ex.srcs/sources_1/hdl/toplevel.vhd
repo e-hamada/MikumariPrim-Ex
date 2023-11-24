@@ -158,6 +158,8 @@ architecture Behavioral of toplevel is
   signal miku_valid_rx      : std_logic;
   signal miku_last_rx       : std_logic;
   signal checksum_err       : std_logic;
+  signal frame_broken       : std_logic;
+  signal recv_terminated    : std_logic;
 
   signal check_count        : integer range 0 to 127:= 0;
 
@@ -173,6 +175,8 @@ architecture Behavioral of toplevel is
   attribute mark_debug of miku_valid_rx  : signal is "true";
   attribute mark_debug of miku_last_rx  : signal is "true";
   attribute mark_debug of checksum_err  : signal is "true";
+  attribute mark_debug of frame_broken  : signal is "true";
+  attribute mark_debug of recv_terminated  : signal is "true";
   attribute mark_debug of pulse_in  : signal is "true";
   attribute mark_debug of busy_pulse_tx  : signal is "true";
   attribute mark_debug of check_count  : signal is "true";
@@ -435,7 +439,7 @@ architecture Behavioral of toplevel is
       -- Master/Slave
       kCbtMode         => "Master",
       -- DEBUG --
-      enDebugCBT       => TRUE,
+      enDebugCBT       => FALSE,
 
       -- MIKUMARI generic --------------------------------------------------------
       -- Scrambler --
@@ -487,6 +491,8 @@ architecture Behavioral of toplevel is
       validOutRx  => miku_valid_rx,
       frameLastRx => miku_last_rx,
       checksumErr => checksum_err,
+      frameBroken => frame_broken,
+      recvTermnd  => recv_terminated,
 
       pulseOut    => open,
       pulseTypeRx => open
