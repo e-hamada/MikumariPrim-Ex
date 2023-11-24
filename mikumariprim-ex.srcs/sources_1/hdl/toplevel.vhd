@@ -114,7 +114,7 @@ architecture Behavioral of toplevel is
   end record;
   constant kSiTCP     : regLeaf := (Index => 1);
   constant kClkOut    : regLeaf := (Index => 2);
-  constant kNC3       : regLeaf := (Index => 3);
+  constant kIdle      : regLeaf := (Index => 3);
   constant kNC4       : regLeaf := (Index => 4);
   constant kDummy     : regLeaf := (Index => 0);
 
@@ -390,8 +390,8 @@ architecture Behavioral of toplevel is
   user_reset      <= system_reset or rst_from_bus or emergency_reset(0);
   bct_reset       <= system_reset or emergency_reset(0);
 
-  NIM_OUT(1)  <= c6c_slow when(DIP(kClkOut.Index) = '1') else '0';
-  NIM_OUT(2)  <= mod_clk  when(DIP(kClkOut.Index) = '1') else '0';
+  NIM_OUT(1)  <= c6c_slow when(DIP(kClkOut.Index) = '1') else NIM_IN(1);
+  NIM_OUT(2)  <= mod_clk  when(DIP(kClkOut.Index) = '1') else pulse_in;
 
   dip_sw(1)   <= DIP(1);
   dip_sw(2)   <= DIP(2);
@@ -518,7 +518,7 @@ architecture Behavioral of toplevel is
     variable count : integer range 0 to 7:= 0;
   begin
     if(clk_slow'event and clk_slow = '1') then
-      if(dip_sw(kNC3.index) = '0') then
+      if(dip_sw(kIdle.index) = '0') then
         miku_valid_tx   <= '1';
         if(miku_tx_ack  = '1') then
           check_count   <= 0;
