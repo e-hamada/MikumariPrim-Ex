@@ -1,6 +1,10 @@
 # MikumariPrim-Ex
 Example design of the MIKUMARI-link primary side
 
+FW magic: 0x390A
+
+Latest version: 2.0
+
 ## Board IOs
 ### LED
 
