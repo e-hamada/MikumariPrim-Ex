@@ -95,6 +95,7 @@ architecture Behavioral of toplevel is
 
   -- System --------------------------------------------------------------------------------
   signal sitcp_reset  : std_logic;
+  signal pwr_on_reset : std_logic;
   signal system_reset : std_logic;
   signal user_reset   : std_logic;
 
@@ -346,6 +347,7 @@ architecture Behavioral of toplevel is
   signal clk_gbe, clk_sys   : std_logic;
   signal clk_locked         : std_logic;
   signal clk_sys_locked     : std_logic;
+  signal clk_miku_locked    : std_logic;
   signal clk_spi            : std_logic;
 
 
@@ -381,11 +383,15 @@ architecture Behavioral of toplevel is
     generic map(kNumDelay => 128)
     port map(clk_sys, USR_RSTB, delayed_usr_rstb);
 
+
+  clk_miku_locked <= CDCE_LOCK;
+  clk_locked      <= clk_sys_locked and clk_miku_locked;
+
   c6c_reset       <= (not clk_sys_locked) or (not delayed_usr_rstb);
   mmcm_cdcm_reset <= (not delayed_usr_rstb);
 
-  clk_locked      <= clk_sys_locked and CDCE_LOCK;
-  system_reset    <= (not clk_locked) or (not USR_RSTB);
+  system_reset    <= (not clk_miku_locked) or (not USR_RSTB);
+  pwr_on_reset    <= (not clk_sys_locked) or (not USR_RSTB);
 
   user_reset      <= system_reset or rst_from_bus or emergency_reset(0);
   bct_reset       <= system_reset or emergency_reset(0);
@@ -450,6 +456,7 @@ architecture Behavioral of toplevel is
     port map(
       -- System ports -----------------------------------------------------------
       rst           => system_reset,
+      pwrOnRst      => pwr_on_reset,
       clkSer        => clk_fast,
       clkPar        => clk_slow,
       clkIndep      => clk_gbe,
@@ -594,7 +601,7 @@ architecture Behavioral of toplevel is
   gen_tsd: for i in 0 to kNumGtx-1 generate
     u_TSD_Inst : entity mylib.TCP_sender
       port map(
-        RST                     => user_reset,
+        RST                     => pwr_on_reset,
         CLK                     => clk_sys,
 
         -- data from EVB --
@@ -685,7 +692,7 @@ architecture Behavioral of toplevel is
       );
 
   -- SiTCP Inst ------------------------------------------------------------------------
-  sitcp_reset     <= system_reset OR (NOT USR_RSTB);
+  sitcp_reset     <= pwr_on_reset;
 
   gen_SiTCP : for i in 0 to kNumGtx-1 generate
 
@@ -770,7 +777,7 @@ architecture Behavioral of toplevel is
     rbcpRd      => rbcp_rd(i),
 
     -- GMII clock domain --
-    rstXgmii    => system_reset,
+    rstXgmii    => pwr_on_reset,
     clkXgmii    => clk_sys,
     rbcpXgAddr  => rbcp_gmii_addr(i),
     rbcpXgWd    => rbcp_gmii_wd(i),
@@ -782,7 +789,7 @@ architecture Behavioral of toplevel is
 
     u_gTCP_inst : entity mylib.global_sitcp_manager
       port map(
-        RST           => system_reset,
+        RST           => pwr_on_reset,
         CLK           => clk_sys,
         ACTIVE        => tcp_isActive(i),
         REQ           => close_req(i),
@@ -794,7 +801,7 @@ architecture Behavioral of toplevel is
   -- SFP transceiver -------------------------------------------------------------------
   u_MiiRstTimer_Inst : entity mylib.MiiRstTimer
     port map(
-      rst         => system_reset,
+      rst         => pwr_on_reset,
       clk         => clk_sys,
       rstMiiOut   => mii_reset
     );
@@ -837,7 +844,7 @@ architecture Behavioral of toplevel is
       rxuserClk2    => rxuser_clk2,
 
       -- GTXE_COMMON --
-      reset         => system_reset,
+      reset         => pwr_on_reset,
       clkIndep      => clk_gbe,
       clkQPLL       => gt0_qplloutclk,
       refclkQPLL    => gt0_qplloutrefclk
@@ -903,7 +910,7 @@ architecture Behavioral of toplevel is
         -- General IO's
         ---------------
         status_vector        => open,
-        reset                => system_reset
+        reset                => pwr_on_reset
         );
   end generate;
 
