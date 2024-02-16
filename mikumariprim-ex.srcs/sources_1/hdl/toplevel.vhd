@@ -134,9 +134,6 @@ architecture Behavioral of toplevel is
   -- CDCM --
   signal power_on_init        : std_logic;
 
-  signal reset_shiftreg       : std_logic_vector(7 downto 0);
-  signal sync_reset           : std_logic;
-
   signal cbt_lane_up          : std_logic;
   signal pattern_error        : std_logic;
   signal watchdog_error       : std_logic;
@@ -367,6 +364,19 @@ architecture Behavioral of toplevel is
         );
   end component;
 
+  component mmcm_cdcm
+    port
+     (-- Clock in ports
+      -- Clock out ports
+      mmcm_slow          : out    std_logic;
+      mmcm_fast          : out    std_logic;
+      -- Status and control signals
+      reset             : in     std_logic;
+      locked            : out    std_logic;
+      clk_in1           : in     std_logic
+     );
+  end component;
+
   signal clk_fast, clk_slow   : std_logic;
   signal mmcm_cdcm_locked     : std_logic;
   signal mmcm_cdcm_reset      : std_logic;
@@ -384,10 +394,12 @@ architecture Behavioral of toplevel is
     port map(clk_sys, USR_RSTB, delayed_usr_rstb);
 
 
-  clk_miku_locked <= CDCE_LOCK;
+  --clk_miku_locked <= CDCE_LOCK;
+  clk_miku_locked <= mmcm_cdcm_locked;
   clk_locked      <= clk_sys_locked and clk_miku_locked;
 
-  c6c_reset       <= (not clk_sys_locked) or (not delayed_usr_rstb);
+  --c6c_reset       <= (not clk_sys_locked) or (not delayed_usr_rstb);
+  c6c_reset       <= '1';
   mmcm_cdcm_reset <= (not delayed_usr_rstb);
 
   system_reset    <= (not clk_miku_locked) or (not USR_RSTB);
@@ -448,8 +460,8 @@ architecture Behavioral of toplevel is
       enDebugCBT       => FALSE,
 
       -- MIKUMARI generic --------------------------------------------------------
-      -- Scrambler --
       enScrambler      => TRUE,
+      kHighPrecision   => TRUE,
       -- DEBUG --
       enDebugMikumari  => FALSE
     )
@@ -469,7 +481,6 @@ architecture Behavioral of toplevel is
       RXN           => MIKUMARI_RXN,
       modClk        => mod_clk,
       tapValueIn    => "00000",
-      tapValueOut   => open,
 
       -- CBT ports ------------------------------------------------------------
       laneUp        => cbt_lane_up,
@@ -477,6 +488,11 @@ architecture Behavioral of toplevel is
       bitslipErr    => open,
       pattErr       => pattern_error,
       watchDogErr   => watchdog_error,
+
+      tapValueOut   => open,
+      bitslipNum    => open,
+      serdesOffset  => open,
+      firstBitPatt  => open,
 
       -- Mikumari ports -------------------------------------------------------
       linkUp        => mikumari_link_up,
@@ -490,6 +506,7 @@ architecture Behavioral of toplevel is
 
       pulseIn       => pulse_in,
       pulseTypeTx   => "010",
+      pulseRegTx    => "0110",
       busyPulseTx   => busy_pulse_tx,
 
       -- RX port --
@@ -502,7 +519,8 @@ architecture Behavioral of toplevel is
       recvTermnd  => recv_terminated,
 
       pulseOut    => open,
-      pulseTypeRx => open
+      pulseTypeRx => open,
+      pulseRegRx  => open
 
     );
 
@@ -546,19 +564,6 @@ architecture Behavioral of toplevel is
         miku_last_tx    <= '0';
         count           := 0;
       end if;
-    end if;
-  end process;
-
-
-
-  -- Reset sequence --
-  sync_reset    <= reset_shiftreg(7);
-  u_sync_reset : process(system_reset, clk_slow)
-  begin
-    if(system_reset = '1') then
-      reset_shiftreg  <= (others => '1');
-    elsif(clk_slow'event and clk_slow = '1') then
-      reset_shiftreg  <= reset_shiftreg(6 downto 0) & '0';
     end if;
   end process;
 
@@ -930,21 +935,34 @@ architecture Behavioral of toplevel is
       clk_in1_n       => BASE_CLKN
       );
 
+
+  u_MMCM_CDCM : mmcm_cdcm
+    port map (
+      -- Clock out ports
+      mmcm_slow => clk_slow,
+      mmcm_fast => clk_fast,
+      -- Status and control signals
+      reset     => mmcm_cdcm_reset,
+      locked    => mmcm_cdcm_locked,
+      -- Clock in ports
+      clk_in1   => clk_sys
+    );
+
   -- CDCE clocks --
 --  pll_is_locked   <= mmcm_cdcm_locked and CDCE_LOCK;
 
-  u_BUFG_Slow : BUFG
-    port map (
-      O => clk_slow, -- 1-bit output: Clock output
-      I => c6c_slow  -- 1-bit input: Clock input
-    );
-
-  u_BUFG_Fast : BUFG
-    port map (
-      O => clk_fast, -- 1-bit output: Clock output
-      I => c6c_fast  -- 1-bit input: Clock input
-    );
-
+--  u_BUFG_Slow : BUFG
+--    port map (
+--      O => clk_slow, -- 1-bit output: Clock output
+--      I => c6c_slow  -- 1-bit input: Clock input
+--    );
+--
+--  u_BUFG_Fast : BUFG
+--    port map (
+--      O => clk_fast, -- 1-bit output: Clock output
+--      I => c6c_fast  -- 1-bit input: Clock input
+--    );
+--
   u_IBUFDS_SLOW_inst : IBUFDS
     generic map (
        DIFF_TERM => FALSE, -- Differential Termination
