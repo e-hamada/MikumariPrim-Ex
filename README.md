@@ -3,7 +3,11 @@ Example design of the MIKUMARI-link primary side
 
 FW magic: 0x390A
 
-Latest version: 2.0
+Latest version: 2.1
+
+## INSTALLATION 
+You need to generate the vivado project from the TCL script after cloning the repogitory.
+Please see the installation guide for [AMANEQ-Skeleton](https://github.com/spadi-alliance/AMANEQ-Skeleton).
 
 ## Board IOs
 ### LED
