@@ -181,126 +181,129 @@ begin
   ---------------------------------------------------------------------
   CS_SPI  <= chip_select;
 
-  u_ProgramProcess : process(clkSpi, sync_reset_spi)
+  u_ProgramProcess : process(clkSpi)
   begin
-    if(sync_reset_spi = '1') then
-      start_spi_if      <= '0';
-      chip_select       <= '1';
-      we_rd_fifo        <= '0';
-      re_wd_fifo        <= '0';
-      state_prog        <= Idle;
-    elsif(clkSpi'event and clkSpi = '1') then
-      case state_prog is
-        when Idle =>
-          start_spi_if      <= '0';
-          busy_cycle        <= '0';
-          chip_select       <= '1';
-          we_rd_fifo        <= '0';
-          re_wd_fifo        <= '0';
-          i_register        <= kIndexInst;
-          if(start_a_cycle = '1') then
-            busy_cycle      <= '1';
-            state_prog      <= SetChipSelect;
-          end if;
-
-        when SetChipSelect =>
-          length_inst       <= regspi_length_inst;
-          if(regspi_ctrl(kIndexDummyMode) = '0') then
-            chip_select       <= '0';
-          end if;
-          state_prog        <= DoInstruction;
-
-        when DoInstruction =>
-          length_inst       <= std_logic_vector(unsigned(length_inst) -1);
-          start_spi_if      <= '1';
-          state_prog        <= WaitInst;
-
-        when WaitInst =>
-          start_spi_if      <= '0';
-          if(edge_busy_spi_if = "10") then
-            if(unsigned(length_inst) = 0) then
-              case regspi_mode is
-                when kIsReadMode =>
-                  length_read   <= regspi_length_read;
-                  i_register    <= kIndexRead;
-                  state_prog    <= ReadData;
-                when kIsWriteMode =>
-                  re_wd_fifo    <= '1';
-                  length_write  <= regspi_length_write;
-                  i_register    <= kIndexWrite;
-                  state_prog    <= WriteData;
-                when kIsInstMode =>
-                  state_prog    <= Finalize;
-                when others =>
-                  state_prog    <= Finalize;
-              end case;
-            else
-              i_register    <= i_register + 1;
-              state_prog    <= DoInstruction;
+    if(clkSpi'event and clkSpi = '1') then
+      if(sync_reset_spi = '1') then
+        start_spi_if      <= '0';
+        chip_select       <= '1';
+        we_rd_fifo        <= '0';
+        re_wd_fifo        <= '0';
+        state_prog        <= Idle;
+      else
+        case state_prog is
+          when Idle =>
+            start_spi_if      <= '0';
+            busy_cycle        <= '0';
+            chip_select       <= '1';
+            we_rd_fifo        <= '0';
+            re_wd_fifo        <= '0';
+            i_register        <= kIndexInst;
+            if(start_a_cycle = '1') then
+              busy_cycle      <= '1';
+              state_prog      <= SetChipSelect;
             end if;
-          end if;
 
-        when ReadData =>
-          length_read       <= std_logic_vector(unsigned(length_read) -1);
-          start_spi_if      <= '1';
-          we_rd_fifo        <= '0';
-          state_prog        <= WaitRead;
-
-        when WaitRead =>
-          start_spi_if      <= '0';
-          if(edge_busy_spi_if = "10") then
-            regspi_dout_spi <= dout_spi_if;
-            we_rd_fifo      <= '1';
-            if(unsigned(length_read) = 0) then
-              state_prog    <= Finalize;
-            else
-              state_prog    <= ReadData;
+          when SetChipSelect =>
+            length_inst       <= regspi_length_inst;
+            if(regspi_ctrl(kIndexDummyMode) = '0') then
+              chip_select       <= '0';
             end if;
-          end if;
+            state_prog        <= DoInstruction;
 
-        when WriteData =>
-          length_write      <= std_logic_vector(unsigned(length_write) -1);
-          start_spi_if      <= '1';
-          re_wd_fifo        <= '0';
-          state_prog        <= WaitWrite;
+          when DoInstruction =>
+            length_inst       <= std_logic_vector(unsigned(length_inst) -1);
+            start_spi_if      <= '1';
+            state_prog        <= WaitInst;
 
-        when WaitWrite =>
-          start_spi_if      <= '0';
-          if(edge_busy_spi_if = "10") then
-            if(unsigned(length_write) = 0) then
-              state_prog    <= Finalize;
-            else
-              re_wd_fifo    <= '1';
-              state_prog    <= WriteData;
+          when WaitInst =>
+            start_spi_if      <= '0';
+            if(edge_busy_spi_if = "10") then
+              if(unsigned(length_inst) = 0) then
+                case regspi_mode is
+                  when kIsReadMode =>
+                    length_read   <= regspi_length_read;
+                    i_register    <= kIndexRead;
+                    state_prog    <= ReadData;
+                  when kIsWriteMode =>
+                    re_wd_fifo    <= '1';
+                    length_write  <= regspi_length_write;
+                    i_register    <= kIndexWrite;
+                    state_prog    <= WriteData;
+                  when kIsInstMode =>
+                    state_prog    <= Finalize;
+                  when others =>
+                    state_prog    <= Finalize;
+                end case;
+              else
+                i_register    <= i_register + 1;
+                state_prog    <= DoInstruction;
+              end if;
             end if;
-          end if;
 
-        when Finalize =>
-          busy_cycle        <= '0';
-          chip_select       <= '1';
-          we_rd_fifo        <= '0';
-          re_wd_fifo        <= '1';
-          i_register        <= kIndexInst;
-          state_prog        <= Idle;
+          when ReadData =>
+            length_read       <= std_logic_vector(unsigned(length_read) -1);
+            start_spi_if      <= '1';
+            we_rd_fifo        <= '0';
+            state_prog        <= WaitRead;
 
-        when others =>
-          state_prog        <= Idle;
+          when WaitRead =>
+            start_spi_if      <= '0';
+            if(edge_busy_spi_if = "10") then
+              regspi_dout_spi <= dout_spi_if;
+              we_rd_fifo      <= '1';
+              if(unsigned(length_read) = 0) then
+                state_prog    <= Finalize;
+              else
+                state_prog    <= ReadData;
+              end if;
+            end if;
 
-      end case;
+          when WriteData =>
+            length_write      <= std_logic_vector(unsigned(length_write) -1);
+            start_spi_if      <= '1';
+            re_wd_fifo        <= '0';
+            state_prog        <= WaitWrite;
 
+          when WaitWrite =>
+            start_spi_if      <= '0';
+            if(edge_busy_spi_if = "10") then
+              if(unsigned(length_write) = 0) then
+                state_prog    <= Finalize;
+              else
+                re_wd_fifo    <= '1';
+                state_prog    <= WriteData;
+              end if;
+            end if;
+
+          when Finalize =>
+            busy_cycle        <= '0';
+            chip_select       <= '1';
+            we_rd_fifo        <= '0';
+            re_wd_fifo        <= '1';
+            i_register        <= kIndexInst;
+            state_prog        <= Idle;
+
+          when others =>
+            state_prog        <= Idle;
+
+        end case;
+
+      end if;
     end if;
-
   end process;
 
   din_spi_if  <= regspi_din_spi(i_register);
 
   edge_busy_spi_if  <= busy_spi_if_prev & busy_spi_if;
-  process(clkSpi, sync_reset_spi)
+  process(clkSpi)
   begin
-    if(sync_reset_spi = '1') then
-      busy_spi_if_prev  <= '0';
-    elsif(clkSpi'event and clkSpi = '1') then
-      busy_spi_if_prev  <= busy_spi_if;
+    if(clkSpi'event and clkSpi = '1') then
+      if(sync_reset_spi = '1') then
+        busy_spi_if_prev  <= '0';
+      else
+        busy_spi_if_prev  <= busy_spi_if;
+      end if;
     end if;
   end process;
 
@@ -347,7 +350,7 @@ begin
   regspi_din_spi      <= dout_wd_fifo & reg_din_spi(kNumArray-2 downto 0);
 
   regspi_mode   <= regspi_ctrl(kIsReadMode'range);
-  process(sync_reset_spi, clkSpi)
+  process(clkSpi)
   begin
     if(sync_reset_spi = '1') then
       regspi_ctrl         <= (others => '0');
@@ -405,218 +408,220 @@ begin
   ---------------------------------------------------------------------
 
   -- Local bus process ------------------------------------------------
-  u_BusProcess : process(clk, sync_reset)
+  u_BusProcess : process(clk)
   begin
-    if(sync_reset = '1') then
-      reg_start_a_cycle   <= '0';
-      reg_length_inst     <= (others => '0');
-      reg_length_read     <= (others => '0');
-      reg_length_write    <= (others => '0');
-      re_rd_fifo          <= '0';
-      we_wd_fifo          <= '0';
-      reg_ctrl            <= (others => '0');
-      state_lbus	        <= Init;
-    elsif(clk'event and clk = '1') then
-      case state_lbus is
-        when Init =>
-          reg_start_a_cycle   <= '0';
-          reg_length_inst     <= (others => '0');
-          reg_length_read     <= (others => '0');
-          reg_length_write    <= (others => '0');
-          re_rd_fifo          <= '0';
-          we_wd_fifo          <= '0';
-          reg_ctrl            <= (others => '0');
-          dataLocalBusOut     <= x"00";
-          readyLocalBus		    <= '0';
-          state_lbus		      <= Idle;
+    if(clk'event and clk = '1') then
+      if(sync_reset = '1') then
+        reg_start_a_cycle   <= '0';
+        reg_length_inst     <= (others => '0');
+        reg_length_read     <= (others => '0');
+        reg_length_write    <= (others => '0');
+        re_rd_fifo          <= '0';
+        we_wd_fifo          <= '0';
+        reg_ctrl            <= (others => '0');
+        state_lbus	        <= Init;
+      else
+        case state_lbus is
+          when Init =>
+            reg_start_a_cycle   <= '0';
+            reg_length_inst     <= (others => '0');
+            reg_length_read     <= (others => '0');
+            reg_length_write    <= (others => '0');
+            re_rd_fifo          <= '0';
+            we_wd_fifo          <= '0';
+            reg_ctrl            <= (others => '0');
+            dataLocalBusOut     <= x"00";
+            readyLocalBus		    <= '0';
+            state_lbus		      <= Idle;
 
-        when Idle =>
-          readyLocalBus	<= '0';
-          if(weLocalBus = '1' or reLocalBus = '1') then
-            state_lbus	<= Connect;
-          end if;
+          when Idle =>
+            readyLocalBus	<= '0';
+            if(weLocalBus = '1' or reLocalBus = '1') then
+              state_lbus	<= Connect;
+            end if;
 
-        when Connect =>
-          if(weLocalBus = '1') then
-            state_lbus	<= Write;
-          else
-            state_lbus	<= Read;
-          end if;
+          when Connect =>
+            if(weLocalBus = '1') then
+              state_lbus	<= Write;
+            else
+              state_lbus	<= Read;
+            end if;
 
-        when Write =>
-          case addrLocalBus(kNonMultiByte'range) is
-            when kCtrl(kNonMultiByte'range) =>
-              reg_ctrl    <= dataLocalBusIn;
-              state_lbus	<= Done;
+          when Write =>
+            case addrLocalBus(kNonMultiByte'range) is
+              when kCtrl(kNonMultiByte'range) =>
+                reg_ctrl    <= dataLocalBusIn;
+                state_lbus	<= Done;
 
-            when kRegister(kNonMultiByte'range) =>
-              if( addrLocalBus(kMultiByte'range) = k1stbyte) then
-                reg_din_spi(kIndexInst)	  <= dataLocalBusIn;
-              elsif( addrLocalBus(kMultiByte'range) = k2ndbyte) then
-                reg_din_spi(kIndexAddr3)	<= dataLocalBusIn;
-              elsif( addrLocalBus(kMultiByte'range) = k3rdbyte) then
-                reg_din_spi(kIndexAddr2)	<= dataLocalBusIn;
-              elsif( addrLocalBus(kMultiByte'range) = k4thbyte) then
-                reg_din_spi(kIndexAddr1)	<= dataLocalBusIn;
-              elsif( addrLocalBus(kMultiByte'range) = k5thbyte) then
-                reg_din_spi(kIndexAddr0)	<= dataLocalBusIn;
-              elsif( addrLocalBus(kMultiByte'range) = k6thbyte) then
-                reg_din_spi(kIndexDummy)  <= dataLocalBusIn;
-              elsif( addrLocalBus(kMultiByte'range) = k7thbyte) then
-                reg_din_spi(kIndexRead)	  <= dataLocalBusIn;
-              elsif( addrLocalBus(kMultiByte'range) = k8thbyte) then
-                reg_din_spi(kIndexWrite)	<= dataLocalBusIn;
-              else
-                reg_din_spi(kIndexWrite)	<= dataLocalBusIn;
-              end if;
-              state_lbus	<= Done;
+              when kRegister(kNonMultiByte'range) =>
+                if( addrLocalBus(kMultiByte'range) = k1stbyte) then
+                  reg_din_spi(kIndexInst)	  <= dataLocalBusIn;
+                elsif( addrLocalBus(kMultiByte'range) = k2ndbyte) then
+                  reg_din_spi(kIndexAddr3)	<= dataLocalBusIn;
+                elsif( addrLocalBus(kMultiByte'range) = k3rdbyte) then
+                  reg_din_spi(kIndexAddr2)	<= dataLocalBusIn;
+                elsif( addrLocalBus(kMultiByte'range) = k4thbyte) then
+                  reg_din_spi(kIndexAddr1)	<= dataLocalBusIn;
+                elsif( addrLocalBus(kMultiByte'range) = k5thbyte) then
+                  reg_din_spi(kIndexAddr0)	<= dataLocalBusIn;
+                elsif( addrLocalBus(kMultiByte'range) = k6thbyte) then
+                  reg_din_spi(kIndexDummy)  <= dataLocalBusIn;
+                elsif( addrLocalBus(kMultiByte'range) = k7thbyte) then
+                  reg_din_spi(kIndexRead)	  <= dataLocalBusIn;
+                elsif( addrLocalBus(kMultiByte'range) = k8thbyte) then
+                  reg_din_spi(kIndexWrite)	<= dataLocalBusIn;
+                else
+                  reg_din_spi(kIndexWrite)	<= dataLocalBusIn;
+                end if;
+                state_lbus	<= Done;
 
-            when kInstLength(kNonMultiByte'range) =>
-              reg_length_inst   <= dataLocalBusIn(reg_length_inst'range);
-              state_lbus	<= Done;
+              when kInstLength(kNonMultiByte'range) =>
+                reg_length_inst   <= dataLocalBusIn(reg_length_inst'range);
+                state_lbus	<= Done;
 
-            when kReadLength(kNonMultiByte'range) =>
-              if( addrLocalBus(kMultiByte'range) = k1stbyte) then
-                reg_length_read(7 downto 0) <= dataLocalBusIn;
-              elsif( addrLocalBus(kMultiByte'range) = k2ndbyte) then
-                reg_length_read(kWidthRead-1 downto 8) <= dataLocalBusIn(kWidthRead-1-8 downto 0);
-              else
-              end if;
-              state_lbus	<= Done;
+              when kReadLength(kNonMultiByte'range) =>
+                if( addrLocalBus(kMultiByte'range) = k1stbyte) then
+                  reg_length_read(7 downto 0) <= dataLocalBusIn;
+                elsif( addrLocalBus(kMultiByte'range) = k2ndbyte) then
+                  reg_length_read(kWidthRead-1 downto 8) <= dataLocalBusIn(kWidthRead-1-8 downto 0);
+                else
+                end if;
+                state_lbus	<= Done;
 
-            when kWriteLength(kNonMultiByte'range) =>
-              if( addrLocalBus(kMultiByte'range) = k1stbyte) then
-                reg_length_write(7 downto 0) <= dataLocalBusIn;
-              elsif( addrLocalBus(kMultiByte'range) = k2ndbyte) then
-                reg_length_write(kWidthWrite-1 downto 8) <= dataLocalBusIn(kWidthWrite-1-8 downto 0);
-              else
-              end if;
-              state_lbus	<= Done;
+              when kWriteLength(kNonMultiByte'range) =>
+                if( addrLocalBus(kMultiByte'range) = k1stbyte) then
+                  reg_length_write(7 downto 0) <= dataLocalBusIn;
+                elsif( addrLocalBus(kMultiByte'range) = k2ndbyte) then
+                  reg_length_write(kWidthWrite-1 downto 8) <= dataLocalBusIn(kWidthWrite-1-8 downto 0);
+                else
+                end if;
+                state_lbus	<= Done;
 
-            when kWriteFIFO(kNonMultiByte'range) =>
-              din_wd_fifo   <= dataLocalBusIn;
-              we_wd_fifo    <= '1';
-              state_lbus    <= Done;
+              when kWriteFIFO(kNonMultiByte'range) =>
+                din_wd_fifo   <= dataLocalBusIn;
+                we_wd_fifo    <= '1';
+                state_lbus    <= Done;
 
-            when kExecute(kNonMultiByte'range) =>
-              state_lbus	<= Execute;
+              when kExecute(kNonMultiByte'range) =>
+                state_lbus	<= Execute;
 
-            when others =>
-              state_lbus	<= Done;
-          end case;
+              when others =>
+                state_lbus	<= Done;
+            end case;
 
-        when Read =>
-          case addrLocalBus(kNonMultiByte'range) is
-            when kStatus(kNonMultiByte'range) =>
-              dataLocalBusOut <= reg_status;
-              state_lbus	    <= Done;
+          when Read =>
+            case addrLocalBus(kNonMultiByte'range) is
+              when kStatus(kNonMultiByte'range) =>
+                dataLocalBusOut <= reg_status;
+                state_lbus	    <= Done;
 
-            when kCtrl(kNonMultiByte'range) =>
-              dataLocalBusOut <= reg_ctrl;
-              state_lbus	    <= Done;
+              when kCtrl(kNonMultiByte'range) =>
+                dataLocalBusOut <= reg_ctrl;
+                state_lbus	    <= Done;
 
-            when kRegister(kNonMultiByte'range) =>
-              if( addrLocalBus(kMultiByte'range) = k1stbyte) then
-                dataLocalBusOut <= reg_din_spi(kIndexInst);
-              elsif( addrLocalBus(kMultiByte'range) = k2ndbyte) then
-                dataLocalBusOut <= reg_din_spi(kIndexAddr3);
-              elsif( addrLocalBus(kMultiByte'range) = k3rdbyte) then
-                dataLocalBusOut <= reg_din_spi(kIndexAddr2);
-              elsif( addrLocalBus(kMultiByte'range) = k4thbyte) then
-                dataLocalBusOut <= reg_din_spi(kIndexAddr1);
-              elsif( addrLocalBus(kMultiByte'range) = k5thbyte) then
-                dataLocalBusOut <= reg_din_spi(kIndexAddr0);
-              elsif( addrLocalBus(kMultiByte'range) = k6thbyte) then
-                dataLocalBusOut <= reg_din_spi(kIndexDummy);
-              elsif( addrLocalBus(kMultiByte'range) = k7thbyte) then
-                dataLocalBusOut <= reg_din_spi(kIndexRead);
-              elsif( addrLocalBus(kMultiByte'range) = k8thbyte) then
-                dataLocalBusOut <= reg_din_spi(kIndexWrite);
-              else
-                dataLocalBusOut <= reg_din_spi(kIndexWrite);
-              end if;
-              state_lbus	<= Done;
+              when kRegister(kNonMultiByte'range) =>
+                if( addrLocalBus(kMultiByte'range) = k1stbyte) then
+                  dataLocalBusOut <= reg_din_spi(kIndexInst);
+                elsif( addrLocalBus(kMultiByte'range) = k2ndbyte) then
+                  dataLocalBusOut <= reg_din_spi(kIndexAddr3);
+                elsif( addrLocalBus(kMultiByte'range) = k3rdbyte) then
+                  dataLocalBusOut <= reg_din_spi(kIndexAddr2);
+                elsif( addrLocalBus(kMultiByte'range) = k4thbyte) then
+                  dataLocalBusOut <= reg_din_spi(kIndexAddr1);
+                elsif( addrLocalBus(kMultiByte'range) = k5thbyte) then
+                  dataLocalBusOut <= reg_din_spi(kIndexAddr0);
+                elsif( addrLocalBus(kMultiByte'range) = k6thbyte) then
+                  dataLocalBusOut <= reg_din_spi(kIndexDummy);
+                elsif( addrLocalBus(kMultiByte'range) = k7thbyte) then
+                  dataLocalBusOut <= reg_din_spi(kIndexRead);
+                elsif( addrLocalBus(kMultiByte'range) = k8thbyte) then
+                  dataLocalBusOut <= reg_din_spi(kIndexWrite);
+                else
+                  dataLocalBusOut <= reg_din_spi(kIndexWrite);
+                end if;
+                state_lbus	<= Done;
 
-            when kInstLength(kNonMultiByte'range) =>
-              dataLocalBusOut(reg_length_inst'range) <= reg_length_inst;
-              state_lbus	<= Done;
+              when kInstLength(kNonMultiByte'range) =>
+                dataLocalBusOut(reg_length_inst'range) <= reg_length_inst;
+                state_lbus	<= Done;
 
-            when kReadLength(kNonMultiByte'range) =>
-              if( addrLocalBus(kMultiByte'range) = k1stbyte) then
-                dataLocalBusOut  <= reg_length_read(7 downto 0);
-              elsif( addrLocalBus(kMultiByte'range) = k2ndbyte) then
-                dataLocalBusOut  <= kZeroVector(7 downto kWidthRead-8) & reg_length_read(kWidthRead-1 downto 8);
-              else
-              end if;
-              state_lbus	<= Done;
+              when kReadLength(kNonMultiByte'range) =>
+                if( addrLocalBus(kMultiByte'range) = k1stbyte) then
+                  dataLocalBusOut  <= reg_length_read(7 downto 0);
+                elsif( addrLocalBus(kMultiByte'range) = k2ndbyte) then
+                  dataLocalBusOut  <= kZeroVector(7 downto kWidthRead-8) & reg_length_read(kWidthRead-1 downto 8);
+                else
+                end if;
+                state_lbus	<= Done;
 
-            when kWriteLength(kNonMultiByte'range) =>
-              if( addrLocalBus(kMultiByte'range) = k1stbyte) then
-                dataLocalBusOut   <= reg_length_read(7 downto 0);
-              elsif( addrLocalBus(kMultiByte'range) = k2ndbyte) then
-                dataLocalBusOut  <= kZeroVector(7 downto kWidthWrite-8) & reg_length_read(kWidthWrite-1 downto 8);
-              else
-              end if;
-              state_lbus	<= Done;
+              when kWriteLength(kNonMultiByte'range) =>
+                if( addrLocalBus(kMultiByte'range) = k1stbyte) then
+                  dataLocalBusOut   <= reg_length_read(7 downto 0);
+                elsif( addrLocalBus(kMultiByte'range) = k2ndbyte) then
+                  dataLocalBusOut  <= kZeroVector(7 downto kWidthWrite-8) & reg_length_read(kWidthWrite-1 downto 8);
+                else
+                end if;
+                state_lbus	<= Done;
 
-            when kReadCountFIFO(kNonMultiByte'range) =>
-              if( addrLocalBus(kMultiByte'range) = k1stbyte) then
-                dataLocalBusOut   <= rcount_rd_fifo(7 downto 0);
-              elsif( addrLocalBus(kMultiByte'range) = k2ndbyte) then
-                dataLocalBusOut  <= kZeroVector(7 downto kWidthRead-8) & rcount_rd_fifo(kWidthRead-1 downto 8);
-              else
-              end if;
-              state_lbus	<= Done;
+              when kReadCountFIFO(kNonMultiByte'range) =>
+                if( addrLocalBus(kMultiByte'range) = k1stbyte) then
+                  dataLocalBusOut   <= rcount_rd_fifo(7 downto 0);
+                elsif( addrLocalBus(kMultiByte'range) = k2ndbyte) then
+                  dataLocalBusOut  <= kZeroVector(7 downto kWidthRead-8) & rcount_rd_fifo(kWidthRead-1 downto 8);
+                else
+                end if;
+                state_lbus	<= Done;
 
-            when kWriteCountFIFO(kNonMultiByte'range) =>
-              if( addrLocalBus(kMultiByte'range) = k1stbyte) then
-                dataLocalBusOut   <= wcount_wd_fifo(7 downto 0);
-              elsif( addrLocalBus(kMultiByte'range) = k2ndbyte) then
-                dataLocalBusOut  <= kZeroVector(7 downto kWidthWrite-8) & wcount_wd_fifo(kWidthWrite-1 downto 8);
-              else
-              end if;
-              state_lbus	<= Done;
+              when kWriteCountFIFO(kNonMultiByte'range) =>
+                if( addrLocalBus(kMultiByte'range) = k1stbyte) then
+                  dataLocalBusOut   <= wcount_wd_fifo(7 downto 0);
+                elsif( addrLocalBus(kMultiByte'range) = k2ndbyte) then
+                  dataLocalBusOut  <= kZeroVector(7 downto kWidthWrite-8) & wcount_wd_fifo(kWidthWrite-1 downto 8);
+                else
+                end if;
+                state_lbus	<= Done;
 
-            when kReadFIFO(kNonMultiByte'range) =>
-              if(empty_rd_fifo = '1') then
-                dataLocalBusOut   <= X"ee";
-                state_lbus        <= Done;
-              else
-                re_rd_fifo        <= '1';
-                state_lbus	      <= ReadFIFO;
-              end if;
+              when kReadFIFO(kNonMultiByte'range) =>
+                if(empty_rd_fifo = '1') then
+                  dataLocalBusOut   <= X"ee";
+                  state_lbus        <= Done;
+                else
+                  re_rd_fifo        <= '1';
+                  state_lbus	      <= ReadFIFO;
+                end if;
 
-            when others => null;
-          end case;
+              when others => null;
+            end case;
 
-        when ReadFIFO =>
-          re_rd_fifo <= '0';
-          if(rvalid_rd_fifo = '1') then
-            dataLocalBusOut   <= dout_rd_fifo;
+          when ReadFIFO =>
+            re_rd_fifo <= '0';
+            if(rvalid_rd_fifo = '1') then
+              dataLocalBusOut   <= dout_rd_fifo;
+              state_lbus        <= Done;
+            end if;
+
+          when Execute =>
+            if(reg_busy_cycle = '0') then
+              reg_start_a_cycle   <= '1';
+              state_lbus          <= Finalize;
+            end if;
+
+          when Finalize =>
+            reg_start_a_cycle <= '0';
             state_lbus        <= Done;
-          end if;
 
-        when Execute =>
-          if(reg_busy_cycle = '0') then
-            reg_start_a_cycle   <= '1';
-            state_lbus          <= Finalize;
-          end if;
+          when Done =>
+            we_wd_fifo    <= '0';
+            readyLocalBus	<= '1';
+            if(weLocalBus = '0' and reLocalBus = '0') then
+              state_lbus	<= Idle;
+            end if;
 
-        when Finalize =>
-          reg_start_a_cycle <= '0';
-          state_lbus        <= Done;
-
-        when Done =>
-          we_wd_fifo    <= '0';
-          readyLocalBus	<= '1';
-          if(weLocalBus = '0' and reLocalBus = '0') then
-            state_lbus	<= Idle;
-          end if;
-
-        -- probably this is error --
-        when others =>
-          state_lbus	<= Init;
-      end case;
+          -- probably this is error --
+          when others =>
+            state_lbus	<= Init;
+        end case;
+      end if;
     end if;
   end process u_BusProcess;
 

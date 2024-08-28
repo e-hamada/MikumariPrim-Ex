@@ -4,7 +4,7 @@
     "xci_name": "xadc_sys",
     "component_reference": "xilinx.com:ip:xadc_wiz:3.3",
     "ip_revision": "8",
-    "gen_directory": "../../../../amaneq-skeleton.gen/sources_1/ip/xadc_sys",
+    "gen_directory": ".",
     "parameters": {
       "component_parameters": {
         "Component_Name": [ { "value": "xadc_sys", "resolve_type": "user", "usage": "all" } ],
@@ -267,7 +267,7 @@
         "IPCONTEXT": [ { "value": "IP_Flow" } ],
         "IPREVISION": [ { "value": "8" } ],
         "MANAGED": [ { "value": "TRUE" } ],
-        "OUTPUTDIR": [ { "value": "../../../../amaneq-skeleton.gen/sources_1/ip/xadc_sys" } ],
+        "OUTPUTDIR": [ { "value": "." } ],
         "SELECTEDSIMMODEL": [ { "value": "" } ],
         "SHAREDDIR": [ { "value": "." } ],
         "SWVERSION": [ { "value": "2023.1.1" } ],

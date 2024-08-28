@@ -129,19 +129,21 @@ begin
   statusOut.uncorrectable_alarm  <= reg_uncorrectable_alarm;
 
   -- SEM watchdog timer --
-  u_Watchdog : process(clkiCap, rst)
+  u_Watchdog : process(clkiCap)
   begin
-    if(rst = '1') then
-      counter_heartbeat     <= (others => '0');
-      reg_watchdog_alarm    <= '0';
-    elsif(clkIcap'event and clkIcap = '1') then
-      if(sem_heartbeat = '1') then
+    if(clkIcap'event and clkIcap = '1') then
+      if(rst = '1') then
         counter_heartbeat     <= (others => '0');
         reg_watchdog_alarm    <= '0';
-      elsif(counter_heartbeat = kMaxCountHeartbeat) then
-        reg_watchdog_alarm    <= '1';
       else
-        counter_heartbeat     <= std_logic_vector(unsigned(counter_heartbeat) +1);
+        if(sem_heartbeat = '1') then
+          counter_heartbeat     <= (others => '0');
+          reg_watchdog_alarm    <= '0';
+        elsif(counter_heartbeat = kMaxCountHeartbeat) then
+          reg_watchdog_alarm    <= '1';
+        else
+          counter_heartbeat     <= std_logic_vector(unsigned(counter_heartbeat) +1);
+        end if;
       end if;
     end if;
   end process;
@@ -149,17 +151,14 @@ begin
   -- Counter correction --
   u_EdgeCorrection : entity mylib.EdgeDetector
     port map(
-      rst  => rst,
       clk  => clkIcap,
       dIn  => sem_correction,
       dOut => edge_correction
       );
 
-  u_CounterCorrection : process(clkIcap, rst, rstCounter)
+  u_CounterCorrection : process(clkIcap)
   begin
-    if(rst = '1' or rstCounter = '1') then
-      counter_correction  <= (others => '0');
-    elsif(clkIcap'event and clkIcap = '1') then
+    if(clkIcap'event and clkIcap = '1') then
       if(rstCounter = '1') then
         counter_correction  <= (others => '0');
       elsif(edge_correction = '1') then
@@ -169,13 +168,15 @@ begin
   end process;
 
   -- Uncorrectable error alarm --
-  u_Uncorrectable : process(rst, clkIcap)
+  u_Uncorrectable : process(clkIcap)
   begin
-    if(rst = '1') then
-      reg_uncorrectable_alarm   <= '0';
-    elsif(clkIcap'event and clkIcap = '1') then
-      if(sem_uncorrectable = '1') then
-        reg_uncorrectable_alarm   <= '1';
+    if(clkIcap'event and clkIcap = '1') then
+      if(rst = '1') then
+        reg_uncorrectable_alarm   <= '0';
+      else
+        if(sem_uncorrectable = '1') then
+          reg_uncorrectable_alarm   <= '1';
+        end if;
       end if;
     end if;
   end process;

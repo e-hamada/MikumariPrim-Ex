@@ -68,11 +68,9 @@ architecture RTL of SPI_IF is
 begin
   -- =========================== body =========================== --
 
-  process(clk, rst)
+  process(clk)
   begin
-    if(rst = '1') then
-      reg_din   <= (others => '0');
-    elsif(clk'event and clk = '1') then
+    if(clk'event and clk = '1') then
       if(start = '1') then
         reg_din <= dIn;
       end if;
@@ -81,11 +79,9 @@ begin
 
   mosi_spi_pre <= reg_din(to_integer(unsigned(bit_sel)));
 
-  process(clk, rst)
+  process(clk)
   begin
-    if(rst = '1') then
-      reg_shift <= (others => '0');
-    elsif(clk'event and clk = '1') then
+    if(clk'event and clk = '1') then
       if(reg_shift_enable = '1') then
         reg_shift <= reg_shift(kWidthDataPerCycle-2 downto 0) & misoSpi;
       end if;
@@ -94,11 +90,9 @@ begin
 
   dOut <= reg_shift;
 
-  process(clk, rst)
+  process(clk)
   begin
-    if(rst = '1') then
-      bit_sel <= (others => '0');
-    elsif(clk'event and clk = '1') then
+    if(clk'event and clk = '1') then
       if(bit_sel_count_clear = '1') then
         bit_sel <= (others => '1');
       elsif(bit_sel_count_down = '1') then
@@ -107,12 +101,14 @@ begin
     end if;
   end process;
 
-  process(clk, rst)
+  process(clk)
   begin
-    if(rst = '1') then
-      current_state <= IDLE;
-    elsif(clk'event and clk = '1') then
-      current_state <= next_state;
+    if(clk'event and clk = '1') then
+      if(rst = '1') then
+        current_state <= IDLE;
+      else
+        current_state <= next_state;
+      end if;
     end if;
   end process;
 
@@ -149,20 +145,20 @@ begin
   busy                  <= '1' when(current_state /= IDLE) else '0';
 
 
-  process(clk, rst)
+  process(clk)
   begin
-    if(rst = '1') then
-      reg_sclk_spi <= '0';
-    elsif(clk'event and clk = '1') then
-      reg_sclk_spi <= sclk_spi_pre xor invClk;
+     if(clk'event and clk = '1') then
+      if(rst = '1') then
+        reg_sclk_spi <= '0';
+      else
+        reg_sclk_spi <= sclk_spi_pre xor invClk;
+      end if;
     end if;
   end process;
 
-  process(clk, rst)
+  process(clk)
   begin
-    if(rst = '1') then
-      mosiSpi <= '0';
-    elsif(clk'event and clk = '1') then
+    if(clk'event and clk = '1') then
       mosiSpi <= mosi_spi_pre;
     end if;
   end process;

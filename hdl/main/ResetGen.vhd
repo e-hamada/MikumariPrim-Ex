@@ -1,9 +1,6 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
-library mylib;
-use mylib.defResetGen.all;
-
 entity ResetGen is
     port (
       rst       : in std_logic;
@@ -14,20 +11,20 @@ end ResetGen;
 
 architecture RTL of ResetGen is
   -- Internal signal declaration ---------------------------------------
-  signal reset_shiftreg : std_logic_vector(kWidthResetSync-1 downto 0);
-  signal sync_reset     : std_logic;
+  constant kWidthResetSync  : integer:= 5;
+  signal reg_reset          : std_logic_vector(kWidthResetSync-1 downto 0);
+
+  attribute async_reg : string;
+  attribute async_reg of u_sync_reset : label is "true";
 
 begin
   --============================ body ==================================
-  resetOut  <= sync_reset;
+  resetOut  <= reg_reset(kWidthResetSync-1);
 
-  sync_reset  <= reset_shiftreg(kWidthResetSync-1);
-  u_sync_base_reset : process(rst, clk)
+  u_sync_reset : process(clk)
   begin
-    if(rst = '1') then
-      reset_shiftreg  <= (others => '1');
-    elsif(clk'event and clk = '1') then
-      reset_shiftreg  <= reset_shiftreg(kWidthResetSync-2 downto 0) & '0';
+    if(clk'event and clk = '1') then
+      reg_reset  <= reg_reset(kWidthResetSync-2 downto 0) & rst;
     end if;
   end process;
 
