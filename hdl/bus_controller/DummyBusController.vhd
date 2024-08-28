@@ -40,37 +40,39 @@ begin
   ackRBCP	    <= ack_ext_bus;
 
   -- Bus control process --
-  u_BusControlProcess : process (clk, rstSys)
+  u_BusControlProcess : process (clk)
   begin
-    if(rstSys = '1') then
-      data_ext_bus_out  <= x"00";
-      ack_ext_bus	      <= '0';
-      state_bus	        <= Init;
-    elsif(clk'event and clk = '1') then
-      case state_bus is
-        when Init =>
-          data_ext_bus_out  <= x"00";
-          ack_ext_bus		    <= '0';
-          state_bus		      <= Idle;
+    if(clk'event and clk = '1') then
+      if(rstSys = '1') then
+        data_ext_bus_out  <= x"00";
+        ack_ext_bus	      <= '0';
+        state_bus	        <= Init;
+      else
+        case state_bus is
+          when Init =>
+            data_ext_bus_out  <= x"00";
+            ack_ext_bus		    <= '0';
+            state_bus		      <= Idle;
 
-        when Idle =>
-          if(reRBCP = '1' or weRBCP = '1') then
-            state_bus		    <= SetBus;
-          end if;
+          when Idle =>
+            if(reRBCP = '1' or weRBCP = '1') then
+              state_bus		    <= SetBus;
+            end if;
 
-        when SetBus =>
-          -- error state --
-          data_ext_bus_out  <= x"fe";
-          state_bus		      <= Done;
+          when SetBus =>
+            -- error state --
+            data_ext_bus_out  <= x"fe";
+            state_bus		      <= Done;
 
-        when Done =>
-          ack_ext_bus       <= '1';
-          state_bus		      <= Init;
+          when Done =>
+            ack_ext_bus       <= '1';
+            state_bus		      <= Init;
 
-        when others =>
-          state_bus         <= Init;
+          when others =>
+            state_bus         <= Init;
 
-      end case;
+        end case;
+      end if;
     end if;
   end process u_BusControlProcess;
 

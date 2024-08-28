@@ -77,118 +77,120 @@ begin
   reConfig	  <= re_config;
 
   -- Bus control process --
-  u_BusControlProcess : process (clk, rstSys)
+  u_BusControlProcess : process (clk)
     variable  reset_loop_i  : integer range 0 to kMaxResetLoop:= 0;
   begin
-    if(rstSys = '1') then
-      for i in 0 to kNumModules-1 loop
-        reLocalBus(i) <= '0';
-        weLocalBus(i) <= '0';
-      end loop;
-      re_ext_bus	      <= '0';
-      we_ext_bus	      <= '0';
-      data_ext_bus_out  <= x"00";
-      ack_ext_bus	      <= '0';
-      rst_from_bus	    <= '0';
-      re_config         <= '1';
-      state_bus	        <= Init;
+    if(clk'event and clk = '1') then
+      if(rstSys = '1') then
+        for i in 0 to kNumModules-1 loop
+          reLocalBus(i) <= '0';
+          weLocalBus(i) <= '0';
+        end loop;
+        re_ext_bus	      <= '0';
+        we_ext_bus	      <= '0';
+        data_ext_bus_out  <= x"00";
+        ack_ext_bus	      <= '0';
+        rst_from_bus	    <= '0';
+        re_config         <= '1';
+        state_bus	        <= Init;
 
-      reset_loop_i      := 0;
-    elsif(clk'event and clk = '1') then
-      case state_bus is
-        when Init =>
-          for i in 0 to kNumModules-1 loop
-            reLocalBus(i) <= '0';
-            weLocalBus(i) <= '0';
-          end loop;
-          re_ext_bus		    <= '0';
-          we_ext_bus		    <= '0';
-          data_ext_bus_out  <= x"00";
-          ack_ext_bus		    <= '0';
-          rst_from_bus	    <= '0';
-          re_config   	    <= '1';
-          state_bus		      <= Idle;
+        reset_loop_i      := 0;
+      else
+        case state_bus is
+          when Init =>
+            for i in 0 to kNumModules-1 loop
+              reLocalBus(i) <= '0';
+              weLocalBus(i) <= '0';
+            end loop;
+            re_ext_bus		    <= '0';
+            we_ext_bus		    <= '0';
+            data_ext_bus_out  <= x"00";
+            ack_ext_bus		    <= '0';
+            rst_from_bus	    <= '0';
+            re_config   	    <= '1';
+            state_bus		      <= Idle;
 
-          reset_loop_i      := 0;
+            reset_loop_i      := 0;
 
-        when Idle =>
-          if(reRBCP = '1' or weRBCP = '1') then
-            re_ext_bus		<= reRBCP;
-            we_ext_bus		<= weRBCP;
-            mid_ext_bus		<= addrRBCP(kMid'range);
-            addr_ext_bus	<= addrRBCP(kLocalAddr'range);
-            data_ext_bus_in	<= wdRBCP;
-            state_bus		  <= GetDest;
-          end if;
-
-        when GetDest =>
-          if(mid_ext_bus = kMidBct) then -- Do in this module
-            if(re_ext_bus = '1') then
-              if(addr_ext_bus(kNonMultiByte'range) = kBctVersion(kNonMultiByte'range)) then --version info
-                case addr_ext_bus(kMultiByte'range) is
-                  when k1stByte => data_ext_bus_out	<= kCurrentVersion(7 downto 0);
-                  when k2ndByte => data_ext_bus_out	<= kCurrentVersion(15 downto 8);
-                  when k3rdByte => data_ext_bus_out	<= kCurrentVersion(23 downto 16);
-                  when others => data_ext_bus_out	<= kCurrentVersion(31 downto 24);
-                end case;
-                state_bus	<= Done;
-              end if;
-            elsif(we_ext_bus = '1') then
-              if(addr_ext_bus(kNonMultiByte'range) = kBctReset(kNonMultiByte'range)) then -- software reset
-                rst_from_bus	<= '1';
-                state_bus	    <= ResetLoop;
-                reset_loop_i  := kMaxResetLoop;
-              elsif(addr_ext_bus(kNonMultiByte'range) = kBctReConfig(kNonMultiByte'range)) then -- reconfig by SPI
-                re_config       <= '0';
-                state_bus	<= Done;
-              end if;
+          when Idle =>
+            if(reRBCP = '1' or weRBCP = '1') then
+              re_ext_bus		<= reRBCP;
+              we_ext_bus		<= weRBCP;
+              mid_ext_bus		<= addrRBCP(kMid'range);
+              addr_ext_bus	<= addrRBCP(kLocalAddr'range);
+              data_ext_bus_in	<= wdRBCP;
+              state_bus		  <= GetDest;
             end if;
 
-          else -- Go to external user modules
-            i_module  <= GetID(mid_ext_bus);
-            state_bus	<= SetBus;
-          end if;
+          when GetDest =>
+            if(mid_ext_bus = kMidBct) then -- Do in this module
+              if(re_ext_bus = '1') then
+                if(addr_ext_bus(kNonMultiByte'range) = kBctVersion(kNonMultiByte'range)) then --version info
+                  case addr_ext_bus(kMultiByte'range) is
+                    when k1stByte => data_ext_bus_out	<= kCurrentVersion(7 downto 0);
+                    when k2ndByte => data_ext_bus_out	<= kCurrentVersion(15 downto 8);
+                    when k3rdByte => data_ext_bus_out	<= kCurrentVersion(23 downto 16);
+                    when others => data_ext_bus_out	<= kCurrentVersion(31 downto 24);
+                  end case;
+                  state_bus	<= Done;
+                end if;
+              elsif(we_ext_bus = '1') then
+                if(addr_ext_bus(kNonMultiByte'range) = kBctReset(kNonMultiByte'range)) then -- software reset
+                  rst_from_bus	<= '1';
+                  state_bus	    <= ResetLoop;
+                  reset_loop_i  := kMaxResetLoop;
+                elsif(addr_ext_bus(kNonMultiByte'range) = kBctReConfig(kNonMultiByte'range)) then -- reconfig by SPI
+                  re_config       <= '0';
+                  state_bus	<= Done;
+                end if;
+              end if;
 
-        when SetBus =>
-          if(i_module = -1) then
-					-- error state --
-            data_ext_bus_out	<= x"fe";
-            state_bus		<= Done;
-          else
-            addrLocalBus	    <= addr_ext_bus;
-            dataToUserModules	<= data_ext_bus_in;
-            state_bus		      <= Connect;
-          end if;
+            else -- Go to external user modules
+              i_module  <= GetID(mid_ext_bus);
+              state_bus	<= SetBus;
+            end if;
 
-        when Connect =>
-          if(we_ext_bus = '1') then
-            weLocalBus(i_module) <= '1';
-          else
-            reLocalBus(i_module) <= '1';
-          end if;
-          -- wait ready from user modules --
-          if(reg_ready_local_bus(i_module) = '1') then
-            state_bus	      <= Finalize;
-          end if;
+          when SetBus =>
+            if(i_module = -1) then
+            -- error state --
+              data_ext_bus_out	<= x"fe";
+              state_bus		<= Done;
+            else
+              addrLocalBus	    <= addr_ext_bus;
+              dataToUserModules	<= data_ext_bus_in;
+              state_bus		      <= Connect;
+            end if;
 
-        when ResetLoop =>
-          reset_loop_i  := reset_loop_i -1;
-          if(reset_loop_i = 0) then
-            state_bus   <= Done;
-          end if;
+          when Connect =>
+            if(we_ext_bus = '1') then
+              weLocalBus(i_module) <= '1';
+            else
+              reLocalBus(i_module) <= '1';
+            end if;
+            -- wait ready from user modules --
+            if(reg_ready_local_bus(i_module) = '1') then
+              state_bus	      <= Finalize;
+            end if;
 
-        when Finalize =>
-          -- data valid end of process --
-          data_ext_bus_out	<= reg_data_local_bus(i_module);
-          state_bus		      <= Done;
+          when ResetLoop =>
+            reset_loop_i  := reset_loop_i -1;
+            if(reset_loop_i = 0) then
+              state_bus   <= Done;
+            end if;
 
-        when Done =>
-          weLocalBus(i_module)  <= '0';
-          reLocalBus(i_module)  <= '0';
-          ack_ext_bus           <= '1';
-          state_bus		          <= Init;
+          when Finalize =>
+            -- data valid end of process --
+            data_ext_bus_out	<= reg_data_local_bus(i_module);
+            state_bus		      <= Done;
 
-      end case;
+          when Done =>
+            weLocalBus(i_module)  <= '0';
+            reLocalBus(i_module)  <= '0';
+            ack_ext_bus           <= '1';
+            state_bus		          <= Init;
+
+        end case;
+      end if;
     end if;
   end process u_BusControlProcess;
 

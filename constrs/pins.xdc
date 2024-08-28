@@ -28,15 +28,15 @@ set_property PACKAGE_PIN A25 [get_ports DIN]
 set_property PACKAGE_PIN C23 [get_ports FCSB]
 
 # MIKUMARI connector ---------------------------------------------------
-#set_property PACKAGE_PIN B20 [get_ports MIKUMARI_RXP]
-#set_property PACKAGE_PIN A20 [get_ports MIKUMARI_RXN]
-#set_property PACKAGE_PIN A23 [get_ports MIKUMARI_TXP]
-#set_property PACKAGE_PIN A24 [get_ports MIKUMARI_TXN]
+set_property PACKAGE_PIN B20 [get_ports MIKUMARI_RXP]
+set_property PACKAGE_PIN A20 [get_ports MIKUMARI_RXN]
+set_property PACKAGE_PIN A23 [get_ports MIKUMARI_TXP]
+set_property PACKAGE_PIN A24 [get_ports MIKUMARI_TXN]
 
-set_property PACKAGE_PIN AB16 [get_ports MIKUMARI_RXP]
-set_property PACKAGE_PIN AC16 [get_ports MIKUMARI_RXN]
-set_property PACKAGE_PIN AB17 [get_ports MIKUMARI_TXP]
-set_property PACKAGE_PIN AC17 [get_ports MIKUMARI_TXN]
+#set_property PACKAGE_PIN AB16 [get_ports MIKUMARI_RXP]
+#set_property PACKAGE_PIN AC16 [get_ports MIKUMARI_RXN]
+#set_property PACKAGE_PIN AB17 [get_ports MIKUMARI_TXP]
+#set_property PACKAGE_PIN AC17 [get_ports MIKUMARI_TXN]
 
 
 # EEPROM ---------------------------------------------------------------
@@ -299,13 +299,13 @@ set_property IOSTANDARD LVCMOS25 [get_ports FCSB]
 set_property IOB TRUE [get_ports FCSB]
 
 # EXBASE connector -----------------------------------------------------
-#set_property IOSTANDARD LVDS_25 [get_ports MIKUMARI_TXP]
-#set_property IOSTANDARD LVDS_25 [get_ports MIKUMARI_RXP]
-#set_property DIFF_TERM TRUE [get_ports MIKUMARI_RXP]
-
-set_property IOSTANDARD LVDS [get_ports MIKUMARI_TXP]
-set_property IOSTANDARD LVDS [get_ports MIKUMARI_RXP]
+set_property IOSTANDARD LVDS_25 [get_ports MIKUMARI_TXP]
+set_property IOSTANDARD LVDS_25 [get_ports MIKUMARI_RXP]
 set_property DIFF_TERM TRUE [get_ports MIKUMARI_RXP]
+
+#set_property IOSTANDARD LVDS [get_ports MIKUMARI_TXP]
+#set_property IOSTANDARD LVDS [get_ports MIKUMARI_RXP]
+#set_property DIFF_TERM TRUE [get_ports MIKUMARI_RXP]
 
 # EEPROM ---------------------------------------------------------------
 set_property IOSTANDARD LVCMOS25 [get_ports {EEP_CS[*]}]

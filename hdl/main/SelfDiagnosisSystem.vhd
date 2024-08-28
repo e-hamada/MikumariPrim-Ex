@@ -155,18 +155,20 @@ begin
   shutdownOverTemp  <= over_temp;
   uncorrectableAlarm  <= reg_uncorrectable_alarm;
 
-  process(clk, sync_reset)
+  process(clk)
   begin
-    if(sync_reset = '1') then
-      reg_sds_status  <= (others => '0');
-    elsif(clk'event and clk = '1') then
-      reg_sds_status  <= "00" &
-                         reg_uncorrectable_alarm &
-                         reg_watchdog_alarm &
-                         user_vccaux_alarm &
-                         user_vccint_alarm &
-                         user_temp_alarm &
-                         over_temp;
+    if(clk'event and clk = '1') then
+      if(sync_reset = '1') then
+        reg_sds_status  <= (others => '0');
+      else
+        reg_sds_status  <= "00" &
+                           reg_uncorrectable_alarm &
+                           reg_watchdog_alarm &
+                           user_vccaux_alarm &
+                           user_vccint_alarm &
+                           user_temp_alarm &
+                           over_temp;
+      end if;
     end if;
   end process;
 
@@ -212,83 +214,85 @@ begin
       busy_out      => busy_xadc
       );
 
-  u_XadcProcess : process(clk, sync_reset)
+  u_XadcProcess : process(clk)
     variable interval_counter : integer range 0 to kLengthInterval;
   begin
-    if(sync_reset = '1') then
-      interval_counter  := kLengthInterval;
-      interupt_mode     <= '0';
-      interupt_success  <= '0';
-      state_xadc        <= Idle;
-    elsif(clk'event and clk = '1') then
-      case state_xadc is
-        when Idle =>
-          interval_counter      := interval_counter -1;
-          reg_drp_enable        <= '0';
-          reg_drp_write_enable  <= '0';
-          end_xadc_process      <= '0';
-          interupt_success      <= '0';
-          if(interupt_drp = '1') then
-            reg_drp_addr      <= reg_drp_addr_user;
-            interupt_mode     <= '1';
-            interupt_success  <= '1';
-            state_xadc        <= SetMode;
-          elsif(interval_counter = 0) then
-            interupt_mode   <= '0';
-            state_xadc      <= SetTempRead;
-          end if;
-
-        -- Periodic temp read --
-        when SetTempRead =>
-          reg_drp_addr  <= kDrpAddrTemp;
-          state_xadc    <= DoRead;
-
-        -- Interuput sequence --
-        when SetMode =>
-          if(reg_drp_mode = kIsRead) then
-            state_xadc  <= DoRead;
-          else
-            state_xadc  <= DoWrite;
-          end if;
-
-        when DoRead =>
-          reg_drp_enable  <= '1';
-          state_xadc      <= WaitRead;
-
-        when DoWrite =>
-          reg_drp_enable        <= '1';
-          reg_drp_write_enable  <= '1';
-          state_xadc            <= Finalize;
-
-        when WaitRead =>
-          reg_drp_enable        <= '0';
-          if(drp_ready = '1') then
-            if(interupt_mode = '1') then
-              reg_drp_dout        <= drp_dout;
-            else
-              xadcTempOut       <= drp_dout(kWidthDrpDOut-1 downto 4);
+    if(clk'event and clk = '1') then
+      if(sync_reset = '1') then
+        interval_counter  := kLengthInterval;
+        interupt_mode     <= '0';
+        interupt_success  <= '0';
+        state_xadc        <= Idle;
+      else
+        case state_xadc is
+          when Idle =>
+            interval_counter      := interval_counter -1;
+            reg_drp_enable        <= '0';
+            reg_drp_write_enable  <= '0';
+            end_xadc_process      <= '0';
+            interupt_success      <= '0';
+            if(interupt_drp = '1') then
+              reg_drp_addr      <= reg_drp_addr_user;
+              interupt_mode     <= '1';
+              interupt_success  <= '1';
+              state_xadc        <= SetMode;
+            elsif(interval_counter = 0) then
+              interupt_mode   <= '0';
+              state_xadc      <= SetTempRead;
             end if;
-            state_xadc          <= Finalize;
-          end if;
 
-        when Finalize =>
-          reg_drp_enable        <= '0';
-          reg_drp_write_enable  <= '0';
-          if(busy_xadc = '0') then
-            end_xadc_process      <= '1';
-            state_xadc            <= Done;
-          end if;
+          -- Periodic temp read --
+          when SetTempRead =>
+            reg_drp_addr  <= kDrpAddrTemp;
+            state_xadc    <= DoRead;
 
-        when Done =>
-          interval_counter  := kLengthInterval;
-          end_xadc_process  <= '0';
-          interupt_success  <= '0';
-          state_xadc        <= Idle;
+          -- Interuput sequence --
+          when SetMode =>
+            if(reg_drp_mode = kIsRead) then
+              state_xadc  <= DoRead;
+            else
+              state_xadc  <= DoWrite;
+            end if;
 
-        when others =>
-          state_xadc        <= Idle;
+          when DoRead =>
+            reg_drp_enable  <= '1';
+            state_xadc      <= WaitRead;
 
-      end case;
+          when DoWrite =>
+            reg_drp_enable        <= '1';
+            reg_drp_write_enable  <= '1';
+            state_xadc            <= Finalize;
+
+          when WaitRead =>
+            reg_drp_enable        <= '0';
+            if(drp_ready = '1') then
+              if(interupt_mode = '1') then
+                reg_drp_dout        <= drp_dout;
+              else
+                xadcTempOut       <= drp_dout(kWidthDrpDOut-1 downto 4);
+              end if;
+              state_xadc          <= Finalize;
+            end if;
+
+          when Finalize =>
+            reg_drp_enable        <= '0';
+            reg_drp_write_enable  <= '0';
+            if(busy_xadc = '0') then
+              end_xadc_process      <= '1';
+              state_xadc            <= Done;
+            end if;
+
+          when Done =>
+            interval_counter  := kLengthInterval;
+            end_xadc_process  <= '0';
+            interupt_success  <= '0';
+            state_xadc        <= Idle;
+
+          when others =>
+            state_xadc        <= Idle;
+
+        end case;
+      end if;
     end if;
   end process;
 
@@ -374,146 +378,148 @@ begin
       );
 
   -- Local bus process ------------------------------------------------
-  u_BusProcess : process(clk, sync_reset)
+  u_BusProcess : process(clk)
   begin
-    if(sync_reset = '1') then
-      interupt_drp        <= '0';
-      reg_drp_mode        <= '0';
-      reg_drp_din         <= (others => '0');
-      reg_drp_addr_user   <= (others => '0');
-      reg_err_strobe      <= '0';
-      reg_err_inject_address  <= (others => '0');
-      reg_rst_counter     <= '0';
-      state_lbus	        <= Init;
-    elsif(clk'event and clk = '1') then
-      case state_lbus is
-        when Idle =>
-          interupt_drp       <= '0';
-          reg_err_strobe  <= '0';
-          reg_rst_counter <= '0';
+    if(clk'event and clk = '1') then
+      if(sync_reset = '1') then
+        interupt_drp        <= '0';
+        reg_drp_mode        <= '0';
+        reg_drp_din         <= (others => '0');
+        reg_drp_addr_user   <= (others => '0');
+        reg_err_strobe      <= '0';
+        reg_err_inject_address  <= (others => '0');
+        reg_rst_counter     <= '0';
+        state_lbus	        <= Init;
+      else
+        case state_lbus is
+          when Idle =>
+            interupt_drp       <= '0';
+            reg_err_strobe  <= '0';
+            reg_rst_counter <= '0';
 
-          readyLocalBus	<= '0';
-          if(weLocalBus = '1' or reLocalBus = '1') then
-            state_lbus	<= Connect;
-          end if;
+            readyLocalBus	<= '0';
+            if(weLocalBus = '1' or reLocalBus = '1') then
+              state_lbus	<= Connect;
+            end if;
 
-        when Connect =>
-          if(weLocalBus = '1') then
-            state_lbus	<= Write;
-          else
-            state_lbus	<= Read;
-          end if;
+          when Connect =>
+            if(weLocalBus = '1') then
+              state_lbus	<= Write;
+            else
+              state_lbus	<= Read;
+            end if;
 
-        when Write =>
-          case addrLocalBus(kNonMultiByte'range) is
-            when kXadcDrpMode(kNonMultiByte'range) =>
-              reg_drp_mode    <= dataLocalBusIn(0);
-              state_lbus	    <= Done;
+          when Write =>
+            case addrLocalBus(kNonMultiByte'range) is
+              when kXadcDrpMode(kNonMultiByte'range) =>
+                reg_drp_mode    <= dataLocalBusIn(0);
+                state_lbus	    <= Done;
 
-            when kXadcDrpAddr(kNonMultiByte'range) =>
-              reg_drp_addr_user <= dataLocalBusIn(kWidthDrpAddr-1 downto 0);
-              state_lbus	      <= Done;
+              when kXadcDrpAddr(kNonMultiByte'range) =>
+                reg_drp_addr_user <= dataLocalBusIn(kWidthDrpAddr-1 downto 0);
+                state_lbus	      <= Done;
 
-            when kXadcDrpDin(kNonMultiByte'range) =>
-              if( addrLocalBus(kMultiByte'range) = k1stByte) then
-                reg_drp_din(LocalBusInType'range)	    <= dataLocalBusIn;
-              elsif( addrLocalBus(kMultiByte'range) = k2ndByte) then
-                reg_drp_din(kWidthDrpDIn-1 downto 8)  <= dataLocalBusIn;
-              else
-                reg_drp_din(LocalBusInType'range)	  <= dataLocalBusIn;
-              end if;
-              state_lbus	<= Done;
+              when kXadcDrpDin(kNonMultiByte'range) =>
+                if( addrLocalBus(kMultiByte'range) = k1stByte) then
+                  reg_drp_din(LocalBusInType'range)	    <= dataLocalBusIn;
+                elsif( addrLocalBus(kMultiByte'range) = k2ndByte) then
+                  reg_drp_din(kWidthDrpDIn-1 downto 8)  <= dataLocalBusIn;
+                else
+                  reg_drp_din(LocalBusInType'range)	  <= dataLocalBusIn;
+                end if;
+                state_lbus	<= Done;
 
-            when kXadcExecute(kNonMultiByte'range) =>
-              state_lbus	<= Execute;
+              when kXadcExecute(kNonMultiByte'range) =>
+                state_lbus	<= Execute;
 
-            when kSemRstCorCount(kNonMultiByte'range) =>
-              reg_rst_counter <= '1';
-              state_lbus	    <= Done;
+              when kSemRstCorCount(kNonMultiByte'range) =>
+                reg_rst_counter <= '1';
+                state_lbus	    <= Done;
 
-            when kSemErrAddr(kNonMultiByte'range) =>
-              if( addrLocalBus(kMultiByte'range) = k1stByte) then
-                reg_err_inject_address(7 downto 0)  <= dataLocalBusIn;
-              elsif( addrLocalBus(kMultiByte'range) = k2ndByte) then
-                reg_err_inject_address(8*1 + 7 downto 8*1)  <= dataLocalBusIn;
-              elsif( addrLocalBus(kMultiByte'range) = k3rdByte) then
-                reg_err_inject_address(8*2 + 7 downto 8*2)  <= dataLocalBusIn;
-              elsif( addrLocalBus(kMultiByte'range) = k4thByte) then
-                reg_err_inject_address(8*3 + 7 downto 8*3)  <= dataLocalBusIn;
-              else
-                reg_err_inject_address(8*4 + 7 downto 8*4)  <= dataLocalBusIn;
-              end if;
-              state_lbus  <= Done;
+              when kSemErrAddr(kNonMultiByte'range) =>
+                if( addrLocalBus(kMultiByte'range) = k1stByte) then
+                  reg_err_inject_address(7 downto 0)  <= dataLocalBusIn;
+                elsif( addrLocalBus(kMultiByte'range) = k2ndByte) then
+                  reg_err_inject_address(8*1 + 7 downto 8*1)  <= dataLocalBusIn;
+                elsif( addrLocalBus(kMultiByte'range) = k3rdByte) then
+                  reg_err_inject_address(8*2 + 7 downto 8*2)  <= dataLocalBusIn;
+                elsif( addrLocalBus(kMultiByte'range) = k4thByte) then
+                  reg_err_inject_address(8*3 + 7 downto 8*3)  <= dataLocalBusIn;
+                else
+                  reg_err_inject_address(8*4 + 7 downto 8*4)  <= dataLocalBusIn;
+                end if;
+                state_lbus  <= Done;
 
-            when kSemErrStrobe(kNonMultiByte'range) =>
-              reg_err_strobe  <= '1';
-              state_lbus	    <= Done;
+              when kSemErrStrobe(kNonMultiByte'range) =>
+                reg_err_strobe  <= '1';
+                state_lbus	    <= Done;
 
-            when others =>
-              state_lbus	<= Done;
-          end case;
+              when others =>
+                state_lbus	<= Done;
+            end case;
 
-        when Read =>
-          case addrLocalBus(kNonMultiByte'range) is
-            when kSdsStatus(kNonMultiByte'range) =>
-              dataLocalBusOut <= reg_sds_status;
-              state_lbus	    <= Done;
+          when Read =>
+            case addrLocalBus(kNonMultiByte'range) is
+              when kSdsStatus(kNonMultiByte'range) =>
+                dataLocalBusOut <= reg_sds_status;
+                state_lbus	    <= Done;
 
-            when kXadcDrpMode(kNonMultiByte'range) =>
-              dataLocalBusOut <= "0000000" & reg_drp_mode;
-              state_lbus	    <= Done;
+              when kXadcDrpMode(kNonMultiByte'range) =>
+                dataLocalBusOut <= "0000000" & reg_drp_mode;
+                state_lbus	    <= Done;
 
-            when kXadcDrpAddr(kNonMultiByte'range) =>
-              dataLocalBusOut <= '0' & reg_drp_addr_user;
-              state_lbus	    <= Done;
+              when kXadcDrpAddr(kNonMultiByte'range) =>
+                dataLocalBusOut <= '0' & reg_drp_addr_user;
+                state_lbus	    <= Done;
 
-            when kXadcDrpDout(kNonMultiByte'range) =>
-              if( addrLocalBus(kMultiByte'range) = k1stByte) then
-                dataLocalBusOut   <= reg_drp_dout(LocalBusOutType'range);
-              elsif( addrLocalBus(kMultiByte'range) = k2ndByte) then
-                dataLocalBusOut   <= reg_drp_dout(kWidthDrpDout-1 downto 8);
-              else
-                dataLocalBusOut   <= X"ee";
-              end if;
-              state_lbus	<= Done;
+              when kXadcDrpDout(kNonMultiByte'range) =>
+                if( addrLocalBus(kMultiByte'range) = k1stByte) then
+                  dataLocalBusOut   <= reg_drp_dout(LocalBusOutType'range);
+                elsif( addrLocalBus(kMultiByte'range) = k2ndByte) then
+                  dataLocalBusOut   <= reg_drp_dout(kWidthDrpDout-1 downto 8);
+                else
+                  dataLocalBusOut   <= X"ee";
+                end if;
+                state_lbus	<= Done;
 
-            when kSemCorCount(kNonMultiByte'range) =>
-              if( addrLocalBus(kMultiByte'range) = k1stByte) then
---                dataLocalBusOut   <= status_out.counter_correction(LocalBusOutType'range);
-                dataLocalBusOut   <= reg_counter_correction(LocalBusOutType'range);
-              elsif( addrLocalBus(kMultiByte'range) = k2ndByte) then
---                dataLocalBusOut   <= status_out.counter_correction(kWidthCorrection-1 downto 8);
-                dataLocalBusOut   <= reg_counter_correction(kWidthCorrection-1 downto 8);
-              else
-                dataLocalBusOut   <= X"ee";
-              end if;
-              state_lbus	<= Done;
+              when kSemCorCount(kNonMultiByte'range) =>
+                if( addrLocalBus(kMultiByte'range) = k1stByte) then
+  --                dataLocalBusOut   <= status_out.counter_correction(LocalBusOutType'range);
+                  dataLocalBusOut   <= reg_counter_correction(LocalBusOutType'range);
+                elsif( addrLocalBus(kMultiByte'range) = k2ndByte) then
+  --                dataLocalBusOut   <= status_out.counter_correction(kWidthCorrection-1 downto 8);
+                  dataLocalBusOut   <= reg_counter_correction(kWidthCorrection-1 downto 8);
+                else
+                  dataLocalBusOut   <= X"ee";
+                end if;
+                state_lbus	<= Done;
 
-            when others => null;
-          end case;
+              when others => null;
+            end case;
 
-        when Execute =>
-          interupt_drp    <= '1';
-          if(interupt_success = '1') then
-            state_lbus    <= Finalize;
-          end if;
+          when Execute =>
+            interupt_drp    <= '1';
+            if(interupt_success = '1') then
+              state_lbus    <= Finalize;
+            end if;
 
-        when Finalize =>
-          interupt_drp      <= '0';
-          if(end_xadc_process = '1') then
-            state_lbus      <= Done;
-          end if;
+          when Finalize =>
+            interupt_drp      <= '0';
+            if(end_xadc_process = '1') then
+              state_lbus      <= Done;
+            end if;
 
-        when Done =>
-          readyLocalBus	<= '1';
-          if(weLocalBus = '0' and reLocalBus = '0') then
+          when Done =>
+            readyLocalBus	<= '1';
+            if(weLocalBus = '0' and reLocalBus = '0') then
+              state_lbus	<= Idle;
+            end if;
+
+          -- probably this is error --
+          when others =>
             state_lbus	<= Idle;
-          end if;
-
-        -- probably this is error --
-        when others =>
-          state_lbus	<= Idle;
-      end case;
+        end case;
+      end if;
     end if;
   end process u_BusProcess;
 
