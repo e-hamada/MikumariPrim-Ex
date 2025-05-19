@@ -4,3 +4,6 @@
 [submodule "hdl/mikumari"]
 	path = hdl/mikumari
 	url = https://github.com/e-hamada/mikumari.git
+[submodule "hdl/laccp"]
+	path = hdl/laccp
+	url = https://github.com/e-hamada/laccp.git
