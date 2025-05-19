@@ -3,4 +3,4 @@
 	url = https://github.com/BeeBeansTechnologies/SiTCP_Netlist_for_Kintex7.git
 [submodule "hdl/mikumari"]
 	path = hdl/mikumari
-	url = https://github.com/RyotaroHonda/mikumari.git
+	url = https://github.com/e-hamada/mikumari.git
